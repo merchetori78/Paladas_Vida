@@ -514,6 +514,7 @@
 let autorizaImagen = null;
 let firmaTrazada = false;
 let consentimientos = JSON.parse(localStorage.getItem("paladas_consentimientos") || "[]");
+// URL de la aplicación web de Google Apps Script. Si haces una nueva implementación, sustituye esta URL por la nueva URL que termina en /exec.
 let scriptURL = "https://script.google.com/macros/s/AKfycbxZ79dG9JF9EeVpI9WYpFNHBqwUYR1AJVY7x-2p65YQGXbkatlRWExf1rZsdhf2azSH/exec";
 let ultimoRegistro = null;
 
@@ -633,52 +634,72 @@ function selImagen(val) {
 
 // ── ENVIAR CONSENTIMIENTO ─────────────────────────────────────────────────────
 async function enviarConsentimiento() {
-  if (!firmaTrazada) { mostrarToast("⚠️ Por favor, firma el consentimiento", "error"); return; }
+  if (!firmaTrazada) {
+    mostrarToast("Por favor, firma el consentimiento", "error");
+    return;
+  }
 
   const btn = document.getElementById("btnEnviar");
-  btn.disabled = true; btn.textContent = "Guardando...";
+  btn.disabled = true;
+  btn.textContent = "Enviando...";
 
   const ahora = new Date();
   const firmaDataURL = canvas.toDataURL("image/png");
 
   const registro = {
-    fecha:              ahora.toLocaleDateString("es-ES"),
-    hora:               ahora.toLocaleTimeString("es-ES"),
-    nombre:             document.getElementById("nombre").value.trim(),
-    dni:                document.getElementById("dni").value.trim(),
-    fechaNacimiento:    document.getElementById("fechaNac").value,
-    telefono:           document.getElementById("telefono").value.trim(),
-    email:              document.getElementById("email").value.trim(),
+    fecha: ahora.toLocaleDateString("es-ES"),
+    hora: ahora.toLocaleTimeString("es-ES"),
+    nombre: document.getElementById("nombre").value.trim(),
+    dni: document.getElementById("dni").value.trim(),
+    fechaNacimiento: document.getElementById("fechaNac").value,
+    telefono: document.getElementById("telefono").value.trim(),
+    email: document.getElementById("email").value.trim(),
     contactoEmergencia: document.getElementById("contactoEmergencia").value.trim(),
     telefonoEmergencia: document.getElementById("telefonoEmergencia").value.trim(),
-    autorizaImagen:     autorizaImagen === "si" ? "Sí" : "No",
-    fechaActividad:     document.getElementById("fechaActividad").value,
-    firma:              firmaDataURL
+    autorizaImagen: autorizaImagen === "si" ? "Sí" : "No",
+    fechaActividad: document.getElementById("fechaActividad").value,
+    firma: firmaDataURL
   };
 
-  // Guardar localmente
+  let enviadoASheets = false;
+
+  try {
+    if (!scriptURL || scriptURL === "URL_PLACEHOLDER") {
+      throw new Error("La URL de Apps Script no está configurada.");
+    }
+
+    const formData = new FormData();
+    formData.append("fecha", registro.fecha);
+    formData.append("hora", registro.hora);
+    formData.append("nombre", registro.nombre);
+    formData.append("dni", registro.dni);
+    formData.append("fechaNacimiento", registro.fechaNacimiento);
+    formData.append("telefono", registro.telefono);
+    formData.append("email", registro.email);
+    formData.append("contactoEmergencia", registro.contactoEmergencia);
+    formData.append("telefonoEmergencia", registro.telefonoEmergencia);
+    formData.append("autorizaImagen", registro.autorizaImagen);
+    formData.append("fechaActividad", registro.fechaActividad);
+
+    await fetch(scriptURL, {
+      method: "POST",
+      mode: "no-cors",
+      body: formData
+    });
+
+    enviadoASheets = true;
+
+  } catch (error) {
+    console.error("Error enviando a Google Sheets:", error);
+    enviadoASheets = false;
+  }
+
+  // Guardar también en este dispositivo como copia de seguridad.
   consentimientos.unshift(registro);
   localStorage.setItem("paladas_consentimientos", JSON.stringify(consentimientos));
   ultimoRegistro = registro;
 
-  // Enviar a Google Sheets (sin firma para no sobrecargar)
-  if (scriptURL && scriptURL !== "URL_PLACEHOLDER") {
-    try {
-      const params = new URLSearchParams({
-        fecha: registro.fecha, hora: registro.hora,
-        nombre: registro.nombre, dni: registro.dni,
-        fechaNacimiento: registro.fechaNacimiento,
-        telefono: registro.telefono, email: registro.email,
-        contactoEmergencia: registro.contactoEmergencia,
-        telefonoEmergencia: registro.telefonoEmergencia,
-        autorizaImagen: registro.autorizaImagen,
-        fechaActividad: registro.fechaActividad
-      });
-      await fetch(scriptURL + "?" + params.toString(), { method: "GET", mode: "no-cors" });
-    } catch(e) {}
-  }
-
-  // Mostrar pantalla éxito
+  // Mostrar pantalla éxito.
   document.getElementById("exitoNombre").textContent = registro.nombre;
   document.getElementById("exitoDatos").innerHTML = `
     <div class="exito-dato"><span class="exito-dato-label">DNI/NIE</span><span class="exito-dato-valor">${registro.dni}</span></div>
@@ -688,9 +709,16 @@ async function enviarConsentimiento() {
     <div class="exito-dato"><span class="exito-dato-label">Registrado</span><span class="exito-dato-valor">${registro.fecha} ${registro.hora}</span></div>
   `;
 
-  btn.disabled = false; btn.textContent = "✅ Registrar";
+  btn.disabled = false;
+  btn.textContent = "Registrar";
+
   mostrarPantalla("exito");
-  mostrarToast("✅ Consentimiento guardado", "exito");
+
+  if (enviadoASheets) {
+    mostrarToast("Consentimiento enviado a Google Sheets", "exito");
+  } else {
+    mostrarToast("Guardado en este dispositivo, pero no enviado a Sheets", "error");
+  }
 }
 
 // ── GENERAR PDF ───────────────────────────────────────────────────────────────
@@ -711,35 +739,20 @@ function descargarPDF() {
   doc.setFontSize(12); doc.setFont("helvetica", "normal");
   doc.text("Actividad: Paladas de Vida", W/2, 20, { align: "center" });
   doc.setFontSize(9);
-  doc.text("Asociación Deportiva y Sociocultural Dragonas del Jerte · dragonasdeljerte@gmail.com", W/2, 27, { align: "center" });
+  doc.text("Asociacion Deportiva y Sociocultural Dragonas del Jerte - dragonasdeljerte@gmail.com", W/2, 27, { align: "center" });
 
   // Info actividad
-doc.setTextColor(...negro);
-doc.setFontSize(9);
-doc.setFont("helvetica", "normal");
-
-let y = 38;
-
-doc.setFillColor(252, 231, 243);
-doc.roundedRect(14, y - 5, W - 28, 18, 3, 3, "F");
-
-// Periodicidad
-doc.setFont("helvetica", "bold");
-doc.setTextColor(...rosa);
-doc.text("Periodicidad:", 18, y + 1);
-
-doc.setFont("helvetica", "normal");
-doc.setTextColor(...negro);
-doc.text("Todos los domingos - 11:30 h", 48, y + 1);
-
-// Lugar
-doc.setFont("helvetica", "bold");
-doc.setTextColor(...rosa);
-doc.text("Lugar:", 18, y + 7);
-
-doc.setFont("helvetica", "normal");
-doc.setTextColor(...negro);
-doc.text("Rio Jerte, frente a la Escuela Placentina de Piraguismo", 35, y + 7);
+  doc.setTextColor(...negro);
+  doc.setFontSize(9); doc.setFont("helvetica", "normal");
+  let y = 38;
+  doc.setFillColor(252, 231, 243);
+  doc.roundedRect(14, y-5, W-28, 18, 3, 3, "F");
+  doc.setFont("helvetica", "bold"); doc.setTextColor(...rosa);
+  doc.text("Periodicidad:", 18, y+1); doc.setFont("helvetica", "normal"); doc.setTextColor(...negro);
+  doc.text("Todos los domingos - 11:30 h", 48, y+1);
+  doc.setFont("helvetica", "bold"); doc.setTextColor(...rosa);
+  doc.text("Lugar:", 18, y+7); doc.setFont("helvetica", "normal"); doc.setTextColor(...negro);
+  doc.text("Rio Jerte, frente a la Escuela Placentina de Piraguismo", 35, y+7);
 
   // Datos participante
   y = 62;
@@ -777,14 +790,14 @@ doc.text("Rio Jerte, frente a la Escuela Placentina de Piraguismo", 35, y + 7);
 
   doc.setTextColor(...negro); doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
   const declaraciones = [
-    "✓ Ha consultado con su equipo médico sobre la conveniencia de participar.",
-    "✓ Cuenta con autorización o consentimiento médico suficiente para realizar la actividad.",
-    "✓ No padece condición médica conocida que le impida participar de forma segura.",
-    "✓ Se compromete a informar de cualquier circunstancia médica relevante.",
-    "✓ Declara que sabe nadar y se encuentra en condiciones suficientes.",
-    "✓ Acepta utilizar los elementos de seguridad que la organización considere necesarios.",
-    "✓ Conoce y acepta los riesgos propios de una actividad en el medio acuático.",
-    "✓ Se compromete a actuar con prudencia y seguir las indicaciones de la organización.",
+    "- Ha consultado con su equipo medico sobre la conveniencia de participar.",
+    "- Cuenta con autorizacion o consentimiento medico suficiente para realizar la actividad.",
+    "- No padece condicion medica conocida que le impida participar de forma segura.",
+    "- Se compromete a informar de cualquier circunstancia medica relevante.",
+    "- Declara que sabe nadar y se encuentra en condiciones suficientes.",
+    "- Acepta utilizar los elementos de seguridad que la organizacion considere necesarios.",
+    "- Conoce y acepta los riesgos propios de una actividad en el medio acuatico.",
+    "- Se compromete a actuar con prudencia y seguir las indicaciones de la organizacion.",
   ];
   declaraciones.forEach(d => {
     doc.text(d, 16, y);
@@ -799,11 +812,11 @@ doc.text("Rio Jerte, frente a la Escuela Placentina de Piraguismo", 35, y + 7);
   doc.text("3. AUTORIZACIÓN DE IMAGEN", 16, y+4);
   y += 10;
   doc.setTextColor(...negro); doc.setFont("helvetica", "normal");
-  const iconoImg = r.autorizaImagen === "Sí" ? "☑" : "☐";
-  const iconoNoImg = r.autorizaImagen === "No" ? "☑" : "☐";
-  doc.text(`${iconoImg} Sí autorizo la captación y publicación de mi imagen.`, 16, y);
+  const iconoImg = r.autorizaImagen === "Sí" ? "[X]" : "[ ]";
+  const iconoNoImg = r.autorizaImagen === "No" ? "[X]" : "[ ]";
+  doc.text(`${iconoImg} Si autorizo la captacion y publicacion de mi imagen.`, 16, y);
   y += 6;
-  doc.text(`${iconoNoImg} No autorizo la captación y publicación de mi imagen.`, 16, y);
+  doc.text(`${iconoNoImg} No autorizo la captacion y publicacion de mi imagen.`, 16, y);
 
   // Protección datos
   y += 8;
@@ -813,7 +826,7 @@ doc.text("Rio Jerte, frente a la Escuela Placentina de Piraguismo", 35, y + 7);
   doc.text("4. PROTECCIÓN DE DATOS", 16, y+4);
   y += 10;
   doc.setTextColor(...negro); doc.setFont("helvetica", "normal"); doc.setFontSize(8);
-  doc.text("✓ He leído y acepto la política de protección de datos. Los datos serán tratados por la Asociación", 16, y);
+  doc.text("- He leido y acepto la politica de proteccion de datos. Los datos seran tratados por la Asociacion", 16, y);
   y += 5;
   doc.text("  Dragonas del Jerte para gestionar la participación en la actividad.", 16, y);
 
@@ -827,15 +840,20 @@ doc.text("Rio Jerte, frente a la Escuela Placentina de Piraguismo", 35, y + 7);
   doc.text("Firma de la organización:", 120, y);
   y += 5;
 
-  // Insertar imagen de la firma
+  // Insertar firma de la persona participante
   if (r.firma) {
     try {
       doc.addImage(r.firma, "PNG", 16, y, 70, 25);
     } catch(e) {}
   }
 
+  // Insertar firma/sello de la organizacion
+  try {
+    doc.addImage(FIRMA_ORGANIZACION_DATAURL, "JPEG", 120, y - 2, 70, 30);
+  } catch(e) {}
+
   // Líneas de firma
-  y += 28;
+  y += 32;
   doc.setDrawColor(...rosa);
   doc.line(16, y, 90, y);
   doc.line(120, y, 194, y);
@@ -843,18 +861,18 @@ doc.text("Rio Jerte, frente a la Escuela Placentina de Piraguismo", 35, y + 7);
   doc.setFont("helvetica", "normal"); doc.setFontSize(8);
   doc.setTextColor(...gris);
   doc.text(r.nombre, 16, y);
-  doc.text("Asociación Dragonas del Jerte", 120, y);
+  doc.text("Asociacion Dragonas del Jerte", 120, y);
 
   // Footer
   doc.setFillColor(245, 245, 245);
   doc.rect(0, 285, W, 12, "F");
   doc.setTextColor(...gris); doc.setFontSize(7);
   doc.text(`Consentimiento registrado el ${r.fecha} a las ${r.hora}`, W/2, 291, { align: "center" });
-  doc.text("Asociación Deportiva y Sociocultural Dragonas del Jerte · dragonasdeljerte@gmail.com", W/2, 295, { align: "center" });
+  doc.text("Asociacion Deportiva y Sociocultural Dragonas del Jerte - dragonasdeljerte@gmail.com", W/2, 295, { align: "center" });
 
   const nombre_archivo = `consentimiento_${r.nombre.replace(/ /g, "_")}_${r.fechaActividad || r.fecha}.pdf`;
   doc.save(nombre_archivo);
-  mostrarToast("📄 PDF descargado", "exito");
+  mostrarToast("PDF descargado", "exito");
 }
 
 // ── HISTORIAL ─────────────────────────────────────────────────────────────────
