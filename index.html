@@ -661,21 +661,23 @@ async function enviarConsentimiento() {
   localStorage.setItem("paladas_consentimientos", JSON.stringify(consentimientos));
   ultimoRegistro = registro;
 
-  // Enviar a Google Sheets (sin firma para no sobrecargar)
-  if (scriptURL && scriptURL !== "URL_PLACEHOLDER") {
+  // Enviar a Google Sheets
+  if (scriptURL) {
     try {
       const params = new URLSearchParams({
         fecha: registro.fecha, hora: registro.hora,
         nombre: registro.nombre, dni: registro.dni,
         fechaNacimiento: registro.fechaNacimiento,
-        telefono: registro.telefono, email: registro.email,
+        telefono: registro.telefono, email: registro.email || "",
         contactoEmergencia: registro.contactoEmergencia,
         telefonoEmergencia: registro.telefonoEmergencia,
         autorizaImagen: registro.autorizaImagen,
         fechaActividad: registro.fechaActividad
       });
-      await fetch(scriptURL + "?" + params.toString(), { method: "GET", mode: "no-cors" });
-    } catch(e) {}
+      // Usar imagen como proxy para evitar problemas CORS
+      const img = new Image();
+      img.src = scriptURL + "?" + params.toString();
+    } catch(e) { console.log("Error Sheet:", e); }
   }
 
   // Mostrar pantalla éxito
@@ -905,5 +907,4 @@ document.getElementById("fechaActividad").value = hoy;
 </script>
 </body>
 </html>
-
 
