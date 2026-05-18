@@ -714,17 +714,32 @@ function descargarPDF() {
   doc.text("Asociación Deportiva y Sociocultural Dragonas del Jerte · dragonasdeljerte@gmail.com", W/2, 27, { align: "center" });
 
   // Info actividad
-  doc.setTextColor(...negro);
-  doc.setFontSize(9); doc.setFont("helvetica", "normal");
-  let y = 38;
-  doc.setFillColor(252, 231, 243);
-  doc.roundedRect(14, y-5, W-28, 18, 3, 3, "F");
-  doc.setFont("helvetica", "bold"); doc.setTextColor(...rosa);
-  doc.text("📅 Periodicidad: ", 18, y+1); doc.setFont("helvetica", "normal"); doc.setTextColor(...negro);
-  doc.text("Todos los domingos · 11:30 h", 55, y+1);
-  doc.setFont("helvetica", "bold"); doc.setTextColor(...rosa);
-  doc.text("📍 Lugar: ", 18, y+7); doc.setFont("helvetica", "normal"); doc.setTextColor(...negro);
-  doc.text("Río Jerte, frente a la Escuela Placentina de Piragüismo", 38, y+7);
+doc.setTextColor(...negro);
+doc.setFontSize(9);
+doc.setFont("helvetica", "normal");
+
+let y = 38;
+
+doc.setFillColor(252, 231, 243);
+doc.roundedRect(14, y - 5, W - 28, 18, 3, 3, "F");
+
+// Periodicidad
+doc.setFont("helvetica", "bold");
+doc.setTextColor(...rosa);
+doc.text("Periodicidad:", 18, y + 1);
+
+doc.setFont("helvetica", "normal");
+doc.setTextColor(...negro);
+doc.text("Todos los domingos - 11:30 h", 48, y + 1);
+
+// Lugar
+doc.setFont("helvetica", "bold");
+doc.setTextColor(...rosa);
+doc.text("Lugar:", 18, y + 7);
+
+doc.setFont("helvetica", "normal");
+doc.setTextColor(...negro);
+doc.text("Rio Jerte, frente a la Escuela Placentina de Piraguismo", 35, y + 7);
 
   // Datos participante
   y = 62;
