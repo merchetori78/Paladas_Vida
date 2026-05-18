@@ -643,7 +643,7 @@ async function enviarConsentimiento() {
 
   const btn = document.getElementById("btnEnviar");
   btn.disabled = true;
-  btn.textContent = "Enviando...";
+  btn.textContent = "Guardando...";
 
   const ahora = new Date();
   const firmaDataURL = canvas.toDataURL("image/png");
@@ -670,26 +670,25 @@ async function enviarConsentimiento() {
       throw new Error("La URL de Apps Script no está configurada.");
     }
 
-    const params = new URLSearchParams();
-    params.append("accion", "guardarConsentimiento");
-    params.append("fecha", registro.fecha);
-    params.append("hora", registro.hora);
-    params.append("nombre", registro.nombre);
-    params.append("dni", registro.dni);
-    params.append("fechaNacimiento", registro.fechaNacimiento);
-    params.append("telefono", registro.telefono);
-    params.append("email", registro.email);
-    params.append("contactoEmergencia", registro.contactoEmergencia);
-    params.append("telefonoEmergencia", registro.telefonoEmergencia);
-    params.append("autorizaImagen", registro.autorizaImagen);
-    params.append("fechaActividad", registro.fechaActividad);
+    const params = new URLSearchParams({
+      fecha: registro.fecha,
+      hora: registro.hora,
+      nombre: registro.nombre,
+      dni: registro.dni,
+      fechaNacimiento: registro.fechaNacimiento,
+      telefono: registro.telefono,
+      email: registro.email,
+      contactoEmergencia: registro.contactoEmergencia,
+      telefonoEmergencia: registro.telefonoEmergencia,
+      autorizaImagen: registro.autorizaImagen,
+      fechaActividad: registro.fechaActividad
+    });
 
     const urlEnvio = scriptURL + "?" + params.toString();
 
     await fetch(urlEnvio, {
       method: "GET",
-      mode: "no-cors",
-      cache: "no-store"
+      mode: "no-cors"
     });
 
     enviadoASheets = true;
@@ -699,19 +698,34 @@ async function enviarConsentimiento() {
     enviadoASheets = false;
   }
 
-  // Guardar también en este dispositivo como copia de seguridad.
+  // Copia local de seguridad
   consentimientos.unshift(registro);
   localStorage.setItem("paladas_consentimientos", JSON.stringify(consentimientos));
   ultimoRegistro = registro;
 
-  // Mostrar pantalla éxito.
   document.getElementById("exitoNombre").textContent = registro.nombre;
+
   document.getElementById("exitoDatos").innerHTML = `
-    <div class="exito-dato"><span class="exito-dato-label">DNI/NIE</span><span class="exito-dato-valor">${registro.dni}</span></div>
-    <div class="exito-dato"><span class="exito-dato-label">Teléfono</span><span class="exito-dato-valor">${registro.telefono}</span></div>
-    <div class="exito-dato"><span class="exito-dato-label">Fecha actividad</span><span class="exito-dato-valor">${registro.fechaActividad}</span></div>
-    <div class="exito-dato"><span class="exito-dato-label">Autoriza imagen</span><span class="exito-dato-valor">${registro.autorizaImagen}</span></div>
-    <div class="exito-dato"><span class="exito-dato-label">Registrado</span><span class="exito-dato-valor">${registro.fecha} ${registro.hora}</span></div>
+    <div class="exito-dato">
+      <span class="exito-dato-label">DNI/NIE</span>
+      <span class="exito-dato-valor">${registro.dni}</span>
+    </div>
+    <div class="exito-dato">
+      <span class="exito-dato-label">Teléfono</span>
+      <span class="exito-dato-valor">${registro.telefono}</span>
+    </div>
+    <div class="exito-dato">
+      <span class="exito-dato-label">Fecha actividad</span>
+      <span class="exito-dato-valor">${registro.fechaActividad}</span>
+    </div>
+    <div class="exito-dato">
+      <span class="exito-dato-label">Autoriza imagen</span>
+      <span class="exito-dato-valor">${registro.autorizaImagen}</span>
+    </div>
+    <div class="exito-dato">
+      <span class="exito-dato-label">Registrado</span>
+      <span class="exito-dato-valor">${registro.fecha} ${registro.hora}</span>
+    </div>
   `;
 
   btn.disabled = false;
@@ -725,7 +739,6 @@ async function enviarConsentimiento() {
     mostrarToast("Guardado en este dispositivo, pero no enviado a Sheets", "error");
   }
 }
-
 // ── GENERAR PDF ───────────────────────────────────────────────────────────────
 function descargarPDF() {
   if (!ultimoRegistro) return;
