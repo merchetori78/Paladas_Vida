@@ -879,18 +879,35 @@ function mostrarPantalla(p) {
 }
 
 function nuevoConsentimiento() {
-  // Reset formulario
-  document.querySelectorAll("input").forEach(i => { if (i.type !== "checkbox") i.value = ""; });
+  // Reset todos los campos de texto
+  document.querySelectorAll("input:not([type=checkbox])").forEach(i => i.value = "");
+  // Reset checkboxes
   document.querySelectorAll("input[type=checkbox]").forEach(i => i.checked = false);
   document.querySelectorAll(".check-item").forEach(i => i.classList.remove("marcado"));
+  // Reset radio imagen
   document.querySelectorAll(".radio-item").forEach(i => i.classList.remove("seleccionado"));
-  autorizaImagen = null; firmaTrazada = false;
+  autorizaImagen = null;
+  // Reset firma
+  firmaTrazada = false;
   limpiarFirma();
-  irPaso(1);
+  // Reset estado de pasos
+  for (let i = 1; i <= 4; i++) {
+    const dot = document.getElementById("dot" + i);
+    if (i === 1) { dot.className = "paso-dot activo"; dot.textContent = "1"; }
+    else { dot.className = "paso-dot"; dot.textContent = i; }
+    if (i < 4) document.getElementById("linea" + i).className = "paso-linea";
+  }
+  // Mostrar paso 1 y ocultar el resto
+  document.getElementById("paso1").style.display = "block";
+  document.getElementById("paso2").style.display = "none";
+  document.getElementById("paso3").style.display = "none";
+  document.getElementById("paso4").style.display = "none";
   // Poner fecha de hoy
   const hoy = new Date().toISOString().split("T")[0];
   document.getElementById("fechaActividad").value = hoy;
+  // Ir a pantalla formulario
   mostrarPantalla("form");
+  window.scrollTo(0, 0);
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
