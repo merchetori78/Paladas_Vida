@@ -492,7 +492,14 @@
 <!-- PANTALLA HISTORIAL -->
 <div class="pantalla" id="pantallaHistorial" style="padding-bottom:80px;">
   <div class="historial-wrap visible">
-    <div class="historial-titulo">Historial de consentimientos</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <div class="historial-titulo" style="margin-bottom:0;">Historial de consentimientos</div>
+    <button onclick="limpiarHistorial()"
+      style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:6px 12px;
+      color:#dc2626;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;">
+      🗑️ Limpiar
+    </button>
+  </div>
     <div id="listaConsentimientos"></div>
   </div>
 </div>
@@ -868,6 +875,14 @@ function descargarPDF() {
 }
 
 // ── HISTORIAL ─────────────────────────────────────────────────────────────────
+function limpiarHistorial() {
+  if (!confirm("¿Seguro que quieres borrar todo el historial? Esta acción no se puede deshacer.")) return;
+  consentimientos = [];
+  localStorage.removeItem("paladas_consentimientos");
+  renderHistorial();
+  mostrarToast("✅ Historial limpiado", "exito");
+}
+
 function renderHistorial() {
   const lista = document.getElementById("listaConsentimientos");
   if (!consentimientos.length) {
