@@ -514,7 +514,7 @@
 let autorizaImagen = null;
 let firmaTrazada = false;
 let consentimientos = JSON.parse(localStorage.getItem("paladas_consentimientos") || "[]");
-let scriptURL = "https://script.google.com/macros/s/AKfycbyRciTFeFYUhXMEvC-ERzJVf4FtoPYk5Dz7ziclPKW05N9D5Ri5RqvBVQHJqFHWssRe/exec";
+let scriptURL = "https://script.google.com/macros/s/AKfycbzSDpuv7iOYyEVIzxkIc1q3rOEFVergsxVUgL46p4lX1jlJQRIRMF10Zbt05Ghf-ykM/exec";
 let ultimoRegistro = null;
 
 // ── CANVAS FIRMA ──────────────────────────────────────────────────────────────
@@ -661,9 +661,11 @@ async function enviarConsentimiento() {
   localStorage.setItem("paladas_consentimientos", JSON.stringify(consentimientos));
   ultimoRegistro = registro;
 
-  // Enviar a Google Sheets
+  // Generar PDF en base64 y enviar al Sheet + email
   if (scriptURL) {
     try {
+      // Generar PDF primero
+      const pdfBase64 = await generarPDFBase64(registro);
       const params = new URLSearchParams({
         fecha: registro.fecha, hora: registro.hora,
         nombre: registro.nombre, dni: registro.dni,
@@ -672,9 +674,9 @@ async function enviarConsentimiento() {
         contactoEmergencia: registro.contactoEmergencia,
         telefonoEmergencia: registro.telefonoEmergencia,
         autorizaImagen: registro.autorizaImagen,
-        fechaActividad: registro.fechaActividad
+        fechaActividad: registro.fechaActividad,
+        pdfBase64: pdfBase64
       });
-      // Usar imagen como proxy para evitar problemas CORS
       const img = new Image();
       img.src = scriptURL + "?" + params.toString();
     } catch(e) { console.log("Error Sheet:", e); }
@@ -695,10 +697,22 @@ async function enviarConsentimiento() {
   mostrarToast("✅ Consentimiento guardado", "exito");
 }
 
+// ── GENERAR PDF BASE64 (para enviar por email) ────────────────────────────────
+async function generarPDFBase64(r) {
+  return new Promise((resolve) => {
+    try {
+      const pdfDoc = crearDocumentoPDF(r);
+      const base64 = pdfDoc.output("datauristring").split(",")[1];
+      resolve(base64);
+    } catch(e) {
+      console.log("Error generando PDF base64:", e);
+      resolve(null);
+    }
+  });
+}
+
 // ── GENERAR PDF ───────────────────────────────────────────────────────────────
-function descargarPDF() {
-  if (!ultimoRegistro) return;
-  const r = ultimoRegistro;
+function crearDocumentoPDF(r) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
@@ -844,6 +858,13 @@ function descargarPDF() {
   doc.text(`Consentimiento registrado el ${r.fecha} a las ${r.hora}`, W/2, 291, { align: "center" });
   doc.text("Asociación Deportiva y Sociocultural Dragonas del Jerte · dragonasdeljerte@gmail.com", W/2, 295, { align: "center" });
 
+  return doc;
+}
+
+function descargarPDF() {
+  if (!ultimoRegistro) return;
+  const r = ultimoRegistro;
+  const doc = crearDocumentoPDF(r);
   const nombre_archivo = `consentimiento_${r.nombre.replace(/ /g, "_")}_${r.fechaActividad || r.fecha}.pdf`;
   doc.save(nombre_archivo);
   mostrarToast("📄 PDF descargado", "exito");
@@ -924,5 +945,4 @@ document.getElementById("fechaActividad").value = hoy;
 </script>
 </body>
 </html>
-
 
